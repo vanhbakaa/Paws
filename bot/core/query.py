@@ -195,6 +195,7 @@ class Tapper:
                         http_client.headers['Authorization'] = f"Bearer {self.access_token}"
                         session.headers = http_client.headers.copy()
                         user = a[1]
+                        ref_counts = user['referralData']['referralsCount']
                         all_info = f"""
                             ===<cyan>{self.session_name}</cyan>===
                             Referrals count: <cyan>{user['referralData']['referralsCount']}</cyan> referrals
@@ -219,17 +220,16 @@ class Tapper:
                             task_list = await self.get_tasks(session)
                             if task_list:
                                 for task in task_list:
-                                    if task['code'] == "invite":
-                                        logger.info(f"{self.session_name} | Skipped invite task! ")
+                                    if task['code'] == "invite" and ref_counts < 10:
                                         continue
-                                    if task['code'] == "wallet":
-                                        logger.info(f"{self.session_name} | Skipped wallet connect task! ")
+                                    if task['code'] in settings.IGNORE_TASKS:
+                                        logger.info(f"{self.session_name} | Skipped {task['code']} task! ")
                                         continue
                                     if task['progress']['claimed'] is False:
                                         if task['code'] == "telegram":
-                                            logger.info(f"{self.session_name} | Need to use session mode to do join channel task!")
+                                            logger.info(
+                                                f"{self.session_name} | Need to use session mode to do join channel task!")
                                             continue
-                                            # await self.proceed_task(task, session, 3, 3)
                                         else:
                                             await self.proceed_task(task, session, 5, 5)
                                         await asyncio.sleep(random.randint(5, 10))
@@ -275,5 +275,4 @@ async def run_query_tapper1(querys: list[str], proxies):
             await asyncio.sleep(sleep_)
 
         break
-
 
