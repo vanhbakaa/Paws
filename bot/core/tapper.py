@@ -1,4 +1,5 @@
 import asyncio
+import sys
 import traceback
 from itertools import cycle
 from time import time
@@ -46,10 +47,14 @@ class Tapper:
         self.new_account = False
 
     async def get_tg_web_data(self, proxy: str | None) -> str:
-        if settings.REF_LINK == '':
-            ref_param = "sc9bGaHz"
-        else:
-            ref_param = settings.REF_LINK.split('=')[1]
+        try:
+            if settings.REF_LINK == '':
+                ref_param = "sc9bGaHz"
+            else:
+                ref_param = settings.REF_LINK.split('=')[1]
+        except:
+            logger.warning("<yellow>INVAILD REF LINK PLEASE CHECK AGAIN! (PUT YOUR REF LINK NOT REF ID)</yellow>")
+            sys.exit()
         if proxy:
             proxy = Proxy.from_str(proxy)
             proxy_dict = dict(
