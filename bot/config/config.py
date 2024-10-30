@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     REF_LINK: str = "https://t.me/PAWSOG_bot/PAWS?startapp=sc9bGaHz"
 
     AUTO_TASK: bool = True
-
+    IGNORE_TASKS: list[str] = ["wallet"]
+    
     DELAY_EACH_ACCOUNT: list[int] = [20, 30]
     ADVANCED_ANTI_DETECTION: bool = True
 
