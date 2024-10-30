@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from itertools import cycle
 from time import time
 import aiohttp
@@ -35,7 +36,11 @@ class Tapper:
         self.access_token = None
         self.balance = 0
         self.my_ref = "sc9bGaHz"
-        ref_param = settings.REF_LINK.split('=')[1]
+        try:
+            ref_param = settings.REF_LINK.split('=')[1]
+        except:
+            logger.warning("<yellow>INVAILD REF LINK PLEASE CHECK AGAIN! (PUT YOUR REF LINK NOT REF ID)</yellow>")
+            sys.exit()
         self.ref = random.choices([self.my_ref, ref_param], weights=[30, 70], k=1)
         self.new_account = False
     async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy) -> None:
