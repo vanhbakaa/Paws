@@ -235,6 +235,7 @@ class Tapper:
                                         await asyncio.sleep(random.randint(5, 10))
 
                     logger.info(f"----<cyan>Completed {self.session_name}</cyan>----")
+                    return
 
             except InvalidSession as error:
                 raise error
