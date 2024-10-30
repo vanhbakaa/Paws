@@ -326,6 +326,8 @@ class Tapper:
 
 
                     logger.info(f"----<cyan>Completed {self.session_name}</cyan>----")
+                    await http_client.close()
+                    session.close()
                     return
 
             except InvalidSession as error:
