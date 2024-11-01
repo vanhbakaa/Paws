@@ -1,5 +1,5 @@
 import asyncio
-import sys
+import json
 from itertools import cycle
 from time import time
 import aiohttp
@@ -22,10 +22,11 @@ auth_api = f"{end_point}user/auth"
 quest_list = f"{end_point}quests/list"
 complete_task = f"{end_point}quests/completed"
 claim_task = f"{end_point}quests/claim"
+link_wallet = f"{end_point}user/wallet"
 
 
 class Tapper:
-    def __init__(self, query: str, session_name: str, multi_thread: bool):
+    def __init__(self, query: str, session_name: str, multi_thread: bool, wallet: str | None, wallet_memonic: str | None):
         self.query = query
         self.session_name = session_name
         self.first_name = ''
@@ -36,14 +37,12 @@ class Tapper:
         self.access_token = None
         self.balance = 0
         self.my_ref = "sc9bGaHz"
-        try:
-            ref_param = settings.REF_LINK.split('=')[1]
-        except:
-            logger.warning("<yellow>INVAILD REF LINK PLEASE CHECK AGAIN! (PUT YOUR REF LINK NOT REF ID)</yellow>")
-            sys.exit()
-        self.ref = random.choices([self.my_ref, ref_param], weights=[30, 70], k=1)
         self.new_account = False
-    async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy) -> None:
+        self.wallet = wallet
+        self.wallet_connected = False
+        self.wallet_memo = wallet_memonic
+
+    async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy):
         try:
             response = await http_client.get(url='https://ipinfo.io/json', timeout=aiohttp.ClientTimeout(20))
             response.raise_for_status()
@@ -53,10 +52,14 @@ class Tapper:
             country = response_json.get('country', 'NO')
 
             logger.info(f"{self.session_name} |🟩 Logging in with proxy IP {ip} and country {country}")
+            return True
         except Exception as error:
             logger.error(f"{self.session_name} | Proxy: {proxy} | Error: {error}")
+            return False
 
-    async def login(self, http_client: cloudscraper.CloudScraper):
+    async def login(self, http_client: cloudscraper.CloudScraper, retry=3):
+        if retry == 0:
+            return None
         try:
             payload = {
                 "data": self.auth_token,
@@ -72,7 +75,10 @@ class Tapper:
                 return data
             else:
                 print(login.text)
-                logger.warning(f"{self.session_name} | <yellow>Failed to login: {login.status_code}</yellow>")
+                logger.warning(
+                    f"{self.session_name} | <yellow>Failed to login: {login.status_code}, retry in 3-5 seconds</yellow>")
+                await asyncio.sleep(random.randint(3, 5))
+                await self.login(http_client, retry - 1)
                 return None
         except Exception as e:
             # traceback.print_exc()
@@ -96,7 +102,7 @@ class Tapper:
             logger.error(f"{self.session_name} | Unknown error while trying to get tasks: {e}")
             return None
 
-    async def claim_task(self, task, http_client: cloudscraper.CloudScraper, attempt=10):
+    async def claim_task(self, task, http_client: cloudscraper.CloudScraper, attempt=10, maxattempt=10):
         if attempt == 0:
             return False
         try:
@@ -104,14 +110,14 @@ class Tapper:
                 "questId": task['_id']
             }
             logger.info(
-                f"{self.session_name} | Attempt <red>{10 - attempt + 1}</red> to complete task: <cyan>{task['title']}</cyan>")
+                f"{self.session_name} | Attempt <red>{maxattempt - attempt + 1}</red> to claim task: <cyan>{task['title']}</cyan>")
             tasks = http_client.post(claim_task, json=payload)
             if tasks.status_code == 201:
                 res = tasks.json()
                 data = res['data']
                 if data:
                     logger.success(
-                        f"{self.session_name} | <green>Successfully completed task: <cyan>{task['title']}</cyan> - Earned <cyan>{task['rewards'][0]['amount']}</cyan> paws</green>")
+                        f"{self.session_name} | <green>Successfully claimed task: <cyan>{task['title']}</cyan> - Earned <cyan>{task['rewards'][0]['amount']}</cyan> paws</green>")
                     return True
                 else:
                     logger.info(f"{self.session_name} | Failed to claim task: {task['title']}, Retrying...")
@@ -122,7 +128,7 @@ class Tapper:
                     f"{self.session_name} | <yellow>Failed to complete {task['title']}: {tasks.status_code}</yellow>")
                 return await self.claim_task(task, http_client, attempt - 1)
         except Exception as e:
-            logger.error(f"{self.session_name} | Unknown error while trying to get tasks: {e}, Retrying...")
+            logger.error(f"{self.session_name} | Unknown error while trying to claim {task['title']}: {e}, Retrying...")
             await asyncio.sleep(random.randint(1, 3))
             return await self.claim_task(task, http_client, attempt - 1)
 
@@ -140,10 +146,14 @@ class Tapper:
                 res = tasks.json()
                 data = res['data']
                 # print(res)
-                if data:
+                if task['code'] == "wallet" and res.get('success'):
                     logger.success(
                         f"{self.session_name} | <green>Successfully completed <cyan>{task['title']}</cyan></green>")
-                    return await self.claim_task(task, http_client, 5)
+                    return await self.claim_task(task, http_client, 5, 5)
+                elif data:
+                    logger.success(
+                        f"{self.session_name} | <green>Successfully completed <cyan>{task['title']}</cyan></green>")
+                    return await self.claim_task(task, http_client, 5, 5)
                 else:
                     logger.info(f"{self.session_name} | Waiting to complete task: <cyan>{task['title']}</cyan>...")
                     await asyncio.sleep(random.randint(5, 10))
@@ -156,6 +166,22 @@ class Tapper:
             logger.error(f"{self.session_name} | Unknown error while trying to get tasks: {e}, Retrying...")
             await asyncio.sleep(random.randint(1, 3))
             return await self.proceed_task(task, http_client, maxattemp, attempt - 1)
+
+    async def bind_wallet(self, http_client: cloudscraper.CloudScraper):
+        try:
+            payload = {
+                "wallet": self.wallet
+            }
+            res = http_client.post(link_wallet, json=payload)
+
+            if res.status_code == 201 and res.json().get("success") is True:
+                return True
+            else:
+                print(res.text)
+                return False
+        except Exception as e:
+            logger.error(f"{self.session_name} | Unknown error while trying to connect wallet: {e}")
+            return False
 
     async def run(self, proxy: str | None) -> None:
         access_token_created_time = 0
@@ -173,6 +199,8 @@ class Tapper:
                 }
                 session.proxies.update(proxies)
                 logger.info(f"{self.session_name} | bind with proxy ip: {proxy}")
+            else:
+                http_client._connector = None
 
         token_live_time = randint(5000, 7000)
         while True:
@@ -201,10 +229,18 @@ class Tapper:
                         session.headers = http_client.headers.copy()
                         user = a[1]
                         ref_counts = user['referralData']['referralsCount']
+                        wallet = user['userData'].get("wallet")
+                        if wallet is None:
+                            wallet_text = "No wallet"
+                        else:
+                            self.wallet_connected = True
+                            wallet_text = wallet
                         all_info = f"""
                             ===<cyan>{self.session_name}</cyan>===
                             Referrals count: <cyan>{user['referralData']['referralsCount']}</cyan> referrals
+                            Wallet connected: <cyan>{wallet_text}</cyan>
                             Toltal paws: <cyan>{user['gameData']['balance']}</cyan> paws
+
                             Allocation data:
                                 |
                                 --Hamster: <cyan>{user['allocationData']['hamster']['converted']}</cyan> paws
@@ -221,10 +257,36 @@ class Tapper:
 
                         await asyncio.sleep(random.randint(1, 3))
 
+                        if settings.AUTO_CONNECT_WALLET and self.wallet is not None:
+                            if wallet is None:
+                                logger.info(
+                                    f"{self.session_name} | Starting to connect with wallet <cyan>{self.wallet}</cyan>")
+                                a = await self.bind_wallet(session)
+                                if a:
+                                    logger.success(
+                                        f"{self.session_name} | <green>Successfully bind with wallet: <cyan>{self.wallet}</cyan></green>")
+                                    with open('used_wallets.json', 'r') as file:
+                                        wallets = json.load(file)
+                                    wallets.update({
+                                        self.wallet: {
+                                            "memonic": self.wallet_memo,
+                                            "used_for": self.session_name
+                                        }
+                                    })
+                                    with open('used_wallets.json', 'w') as file:
+                                        json.dump(wallets, file, indent=4)
+                                else:
+                                    logger.warning(
+                                        f"{self.session_name} | <yellow>Failed to bind with wallet: {self.wallet}</yellow>")
+                            else:
+                                logger.info(f"{self.session_name} | Already bind with wallet: {wallet}")
+
                         if settings.AUTO_TASK:
                             task_list = await self.get_tasks(session)
                             if task_list:
                                 for task in task_list:
+                                    if task['code'] == "wallet" and self.wallet_connected is False:
+                                        continue
                                     if task['code'] == "invite" and ref_counts < 10:
                                         continue
                                     if task['code'] in settings.IGNORE_TASKS:
@@ -232,8 +294,7 @@ class Tapper:
                                         continue
                                     if task['progress']['claimed'] is False:
                                         if task['code'] == "telegram":
-                                            logger.info(
-                                                f"{self.session_name} | Need to use session mode to do join channel task!")
+                                            logger.info("Skipped join channel task")
                                             continue
                                         else:
                                             await self.proceed_task(task, session, 5, 5)
@@ -254,30 +315,52 @@ class Tapper:
 
 
 
-async def run_query_tapper(query: str, name: str, proxy: str | None):
+async def run_query_tapper(query: str, name: str, proxy: str | None, wallet: str | None, wallet_memonic: str | None):
     try:
-        sleep_ = randint(1, 15)
+        sleep_ = randint(15, 60)
         logger.info(f" start after {sleep_}s")
-        # await asyncio.sleep(sleep_)
-        await Tapper(query=query, session_name=name, multi_thread=False).run(proxy=proxy)
+        await asyncio.sleep(sleep_)
+        await Tapper(query=query, session_name=name, multi_thread=False, wallet=wallet, wallet_memonic=wallet_memonic).run(proxy=proxy)
     except InvalidSession:
         logger.error(f"Invalid Query: {query}")
 
-async def run_query_tapper1(querys: list[str], proxies):
+async def run_query_tapper1(querys: list[str], proxies, wallets):
     proxies_cycle = cycle(proxies) if proxies else None
     name = "Account"
 
     while True:
         i = 0
-        for query in querys:
-            try:
-                await Tapper(query=query,session_name=f"{name} {i}", multi_thread=True).run(next(proxies_cycle) if proxies_cycle else None)
-            except InvalidSession:
-                logger.error(f"Invalid Query: {query}")
+        if settings.AUTO_CONNECT_WALLET:
+            wallets_list = list(wallets.keys())
+            wallet_index = 0
+            if len(wallets_list) < len(querys):
+                logger.warning(
+                    f"<yellow>Wallet not enough for all accounts please generate <red>{len(querys) - len(wallets_list)}</red> wallets more!</yellow>")
+                await asyncio.sleep(3)
 
-            sleep_ = randint(settings.DELAY_EACH_ACCOUNT[0], settings.DELAY_EACH_ACCOUNT[1])
-            logger.info(f"Sleep {sleep_}s...")
-            await asyncio.sleep(sleep_)
+            for query in querys:
+                if wallet_index >= len(wallets_list):
+                    wallet_i = None
+                else:
+                    wallet_i = wallets_list[wallet_index]
+                try:
+                    await Tapper(query=query, session_name=f"{name} {i}", multi_thread=False, wallet=wallet_i, wallet_memonic=wallets[wallet_i]).run(next(proxies_cycle) if proxies_cycle else None)
+                except InvalidSession:
+                    logger.error(f"{query} is Invalid ")
+
+                sleep_ = randint(settings.DELAY_EACH_ACCOUNT[0], settings.DELAY_EACH_ACCOUNT[1])
+                logger.info(f"Sleep {sleep_}s...")
+                await asyncio.sleep(sleep_)
+        else:
+            for query in querys:
+                try:
+                    await Tapper(query=query,session_name=f"{name} {i}", multi_thread=True, wallet=None, wallet_memonic=None).run(next(proxies_cycle) if proxies_cycle else None)
+                except InvalidSession:
+                    logger.error(f"Invalid Query: {query}")
+
+                sleep_ = randint(settings.DELAY_EACH_ACCOUNT[0], settings.DELAY_EACH_ACCOUNT[1])
+                logger.info(f"Sleep {sleep_}s...")
+                await asyncio.sleep(sleep_)
 
         break
 
