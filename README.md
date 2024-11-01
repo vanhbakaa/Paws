@@ -54,7 +54,7 @@ Before you begin, make sure you have the following installed:
 3. Record the API_ID and API_HASH provided after registering your application in the .env file.
 
 ## Wallet
-- You can fill custom wallet like this format:
+- You can fill custom wallet in wallet.json like this format:
 ```
 {
   "Wallet address": "random string"
