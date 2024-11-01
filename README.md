@@ -22,6 +22,7 @@
 | Proxy binding to session                                      |        ✅        |
 | Auto ref                                                      |        ✅        |
 | Auto tasks                                                    |        ✅        |
+| Auto connect wallet                                           |        ✅        |
 | Support for pyrogram .session / Query                         |        ✅        |
 
 ## [Settings](https://github.com/vanhbakaa/Paws/blob/main/.env-example)
@@ -30,6 +31,8 @@
 | **API_ID / API_HASH**      | Platform data from which to run the Telegram session (default - android)                                      |       
 | **REF_LINK**               | Put your ref link here (default: my ref link)                                                                 |
 | **AUTO_TASK**             | Auto do tasks (default: True)                                                                                 |
+| **AUTO_CONNECT_WALLET**             | Auto connect wallet in wallet.json file (default: False)                                                                                 |
+| **IGNORE_TASKS**               | List of tasks to ignore (default: ["telegram"])                                                                        |
 | **DELAY_EACH_ACCOUNT**               | Random delay bewteen accounts (default: [20, 30])                                                                        |
 | **ADVANCED_ANTI_DETECTION**  | Add more protection for your account (default: True)                                           |
 | **USE_PROXY_FROM_FILE**    | Whether to use a proxy from the bot/config/proxies.txt file (True / False)                                    |
