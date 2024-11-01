@@ -58,6 +58,9 @@ Before you begin, make sure you have the following installed:
 ```
 {
   "Wallet address": "random string"
+},
+{
+  "Wallet address2": "random string"
 }
 ```
 
