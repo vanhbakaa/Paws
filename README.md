@@ -2,6 +2,7 @@
 - [Recommendation before use](#recommendation-before-use)
 - [Features](#features)
 - [Settings](#settings)
+- [Wallet](#wallet)
 - [Quick Start](#quick-start)
 - [Prerequisites](#prerequisites)
 - [Obtaining API Keys](#obtaining-api-keys)
@@ -51,6 +52,14 @@ Before you begin, make sure you have the following installed:
 1. Go to my.telegram.org and log in using your phone number.
 2. Select "API development tools" and fill out the form to register a new application.
 3. Record the API_ID and API_HASH provided after registering your application in the .env file.
+
+## Wallet
+- You can fill custom wallet like this format:
+```
+{
+  "Wallet address": "random string"
+}
+```
 
 ## Installation
 You can download the [**repository**](https://github.com/vanhbakaa/Paws) by cloning it to your system and installing the necessary dependencies:
