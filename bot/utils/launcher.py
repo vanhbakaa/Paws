@@ -102,8 +102,8 @@ def get_wallets():
         used_wallets = list(get_used_wallets().keys())
         with open("wallet.json", "r") as f:
             wallets = json.load(f)
-
-        if len(wallets) == 0:
+        
+        if len(wallets) == 0 and settings.AUTO_CONNECT_WALLET:
             logger.warning("<yellow>TO CONNECT WALLET YOU MUST GENERATE WALLET USING OPTION 4 FIRST!</yellow>")
             sys.exit()
 
