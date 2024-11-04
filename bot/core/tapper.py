@@ -118,7 +118,7 @@ class Tapper:
             await asyncio.sleep(delay=3)
 
 
-    async def join_channel(self):
+    async def join_channel(self, channel_link):
         try:
             logger.info(f"{self.session_name} | Joining TG channel...")
             if not self.tg_client.is_connected:
@@ -127,7 +127,7 @@ class Tapper:
                 except (Unauthorized, UserDeactivated, AuthKeyUnregistered):
                     raise InvalidSession(self.session_name)
             try:
-                await self.tg_client.join_chat("pawsupfam")
+                await self.tg_client.join_chat(channel_link)
                 logger.success(f"{self.session_name} | <green>Joined channel successfully</green>")
             except Exception as e:
                 logger.error(f"{self.session_name} | <red>Join TG channel failed - Error: {e}</red>")
@@ -356,7 +356,6 @@ class Tapper:
                                 logger.info(f"{self.session_name} | Starting to connect with wallet <cyan>{self.wallet}</cyan>")
                                 a = await self.bind_wallet(session)
                                 if a:
-                                    self.wallet_connected = True
                                     logger.success(f"{self.session_name} | <green>Successfully bind with wallet: <cyan>{self.wallet}</cyan></green>")
                                     with open('used_wallets.json', 'r') as file:
                                         wallets = json.load(file)
@@ -366,6 +365,7 @@ class Tapper:
                                             "used_for": self.session_name
                                         }
                                     })
+                                    self.wallet_connected = True
                                     with open('used_wallets.json', 'w') as file:
                                         json.dump(wallets, file, indent=4)
                                 else:
@@ -386,7 +386,11 @@ class Tapper:
                                         continue
                                     if task['progress']['claimed'] is False:
                                         if task['code'] == "telegram":
-                                            await self.join_channel()
+                                            if task['code'] == "blum":
+                                                await self.join_channel("blumcrypto")
+                                            elif task['code'] == "telegram":
+                                                channel = task['data'].split("/")[3]
+                                                await self.join_channel(channel)
                                             await self.proceed_task(task, session, 3, 3)
                                         else:
                                             await self.proceed_task(task, session, 5, 5)
