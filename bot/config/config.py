@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     AUTO_CONNECT_WALLET: bool = False
 
     DELAY_EACH_ACCOUNT: list[int] = [20, 30]
-    IGNORE_TASKS: list[str] = ["telegram"]
+    IGNORE_TASKS: list[str] = ["boost"]
     ADVANCED_ANTI_DETECTION: bool = True
 
     USE_PROXY_FROM_FILE: bool = False
