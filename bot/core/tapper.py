@@ -117,6 +117,37 @@ class Tapper:
                          f"{error}")
             await asyncio.sleep(delay=3)
 
+    async def add_icon(self):
+        try:
+            if not self.tg_client.is_connected:
+                await self.tg_client.connect()
+
+            me = await self.tg_client.get_me()
+            name = randint(1, 2)
+            if "▪️" not in f"{str(me.first_name)} {str(me.last_name)}":
+                if name == 1:
+                    if me.first_name is not None:
+                        new_display_name = f"{me.first_name} 🐾"
+                    else:
+                        new_display_name = "▪️"
+                    await self.tg_client.update_profile(first_name=new_display_name)
+                else:
+                    if me.last_name is not None:
+                        new_display_name = f"{me.last_name} 🐾"
+                    else:
+                        new_display_name = "▪️"
+                    await self.tg_client.update_profile(last_name=new_display_name)
+                logger.success(f"{self.session_name} | 🟩 Display name updated to: {new_display_name}")
+
+            if self.tg_client.is_connected:
+                await self.tg_client.disconnect()
+
+        except Exception as error:
+            if self.tg_client.is_connected:
+                await self.tg_client.disconnect()
+            logger.error(f"{self.session_name} | 🟥 Error while changing username: {error}")
+            await asyncio.sleep(delay=3)
+
 
     async def join_channel(self, channel_link):
         try:
@@ -386,6 +417,9 @@ class Tapper:
                                         continue
                                     if task['progress']['claimed'] is False:
                                         if task['code'] == "telegram":
+                                            if task['code'] == "emojiName":
+                                                await self.add_icon()
+                                                await asyncio.sleep(random.randint(1,4))
                                             if task['code'] == "blum":
                                                 await self.join_channel("blumcrypto")
                                             elif task['code'] == "telegram":
