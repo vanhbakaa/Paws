@@ -263,7 +263,6 @@ class Tapper:
                                     f"{self.session_name} | Starting to connect with wallet <cyan>{self.wallet}</cyan>")
                                 a = await self.bind_wallet(session)
                                 if a:
-                                    self.wallet_connected = True
                                     logger.success(
                                         f"{self.session_name} | <green>Successfully bind with wallet: <cyan>{self.wallet}</cyan></green>")
                                     with open('used_wallets.json', 'r') as file:
@@ -286,6 +285,8 @@ class Tapper:
                             task_list = await self.get_tasks(session)
                             if task_list:
                                 for task in task_list:
+                                    if task['code'] == "emojiName":
+                                        logger.info(f"{self.session_name} | Can't do task <cyan>{task['title']}</cyan> in query mode!")
                                     if task['code'] == "wallet" and self.wallet_connected is False:
                                         continue
                                     if task['code'] == "invite" and ref_counts < 10:
