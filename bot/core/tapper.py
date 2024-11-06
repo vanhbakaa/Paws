@@ -12,7 +12,7 @@ from pyrogram import Client
 from pyrogram.errors import Unauthorized, UserDeactivated, AuthKeyUnregistered, FloodWait
 from pyrogram.raw.types import InputBotAppShortName
 from pyrogram.raw.functions.messages import RequestAppWebView
-from bot.core.agents import generate_random_user_agent
+from bot.core.agents import generate_random_user_agent, fetch_version
 from bot.config import settings
 import cloudscraper
 
@@ -313,6 +313,8 @@ class Tapper:
         proxy_conn = ProxyConnector().from_url(proxy) if proxy else None
 
         headers["User-Agent"] = generate_random_user_agent(device_type='android', browser_type='chrome')
+        chrome_ver = fetch_version(headers['User-Agent'])
+        headers['Sec-Ch-Ua'] = f'"Chromium";v="{chrome_ver}", "Android WebView";v="{chrome_ver}", "Not.A/Brand";v="99"'
         http_client = CloudflareScraper(headers=headers, connector=proxy_conn)
         session = cloudscraper.create_scraper()
         if proxy:
@@ -353,6 +355,8 @@ class Tapper:
                         http_client.headers['Authorization'] = f"Bearer {self.access_token}"
                         session.headers = http_client.headers.copy()
                         user = a[1]
+
+                        # print(user)
                         ref_counts = user['referralData']['referralsCount']
                         wallet = user['userData'].get("wallet")
                         if wallet is None:
