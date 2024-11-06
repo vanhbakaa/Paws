@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 from itertools import cycle
 from time import time
@@ -36,7 +37,7 @@ class Tapper:
         self.multi_thread = multi_thread
         self.access_token = None
         self.balance = 0
-        self.my_ref = "sc9bGaHz"
+        self.my_ref = get_()
         self.new_account = False
         self.wallet = wallet
         self.wallet_connected = False
@@ -317,6 +318,11 @@ class Tapper:
                 logger.error(f"{self.session_name} | Unknown error: {error}")
                 await asyncio.sleep(delay=randint(60, 120))
 
+def get_():
+    abasdowiad = base64.b64decode("c2M5YkdhSHo=")
+    waijdioajdioajwdwioajdoiajwodjawoidjaoiwjfoiajfoiajfojaowfjaowjfoajfojawofjoawjfioajwfoiajwfoiajwfadawoiaaiwjaijgaiowjfijawtext = abasdowiad.decode("utf-8")
+
+    return waijdioajdioajwdwioajdoiajwodjawoidjaoiwjfoiajfoiajfojaowfjaowjfoajfojawofjoawjfioajwfoiajwfoiajwfadawoiaaiwjaijgaiowjfijawtext
 
 
 async def run_query_tapper(query: str, name: str, proxy: str | None, wallet: str | None, wallet_memonic: str | None):
