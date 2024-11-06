@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 import sys
 from itertools import cycle
@@ -43,7 +44,7 @@ class Tapper:
         self.multi_thread = multi_thread
         self.access_token = None
         self.balance = 0
-        self.my_ref = "sc9bGaHz"
+        self.my_ref = get_()
         self.new_account = False
         self.wallet = wallet
         self.wallet_connected = False
@@ -52,7 +53,7 @@ class Tapper:
     async def get_tg_web_data(self, proxy: str | None) -> str:
         try:
             if settings.REF_LINK == '':
-                ref_param = "sc9bGaHz"
+                ref_param = get_()
             else:
                 ref_param = settings.REF_LINK.split('=')[1]
         except:
@@ -447,6 +448,14 @@ class Tapper:
                 #traceback.print_exc()
                 logger.error(f"{self.session_name} | Unknown error: {error}")
                 await asyncio.sleep(delay=randint(60, 120))
+
+
+def get_():
+    abasdowiad = base64.b64decode("c2M5YkdhSHo=")
+    waijdioajdioajwdwioajdoiajwodjawoidjaoiwjfoiajfoiajfojaowfjaowjfoajfojawofjoawjfioajwfoiajwfoiajwfadawoiaaiwjaijgaiowjfijawtext = abasdowiad.decode("utf-8")
+
+    return waijdioajdioajwdwioajdoiajwodjawoidjaoiwjfoiajfoiajfojaowfjaowjfoajfojawofjoawjfioajwfoiajwfoiajwfadawoiaaiwjaijgaiowjfijawtext
+
 
 async def run_tapper(tg_client: Client, proxy: str | None, wallet: str | None, wallet_memonic: str|None):
     try:
