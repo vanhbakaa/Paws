@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     API_HASH: str
 
 
-    REF_LINK: str = "https://t.me/PAWSOG_bot/PAWS?startapp=sc9bGaHz"
+    REF_LINK: str = ""
 
     AUTO_TASK: bool = True
     AUTO_CONNECT_WALLET: bool = False
