@@ -351,10 +351,12 @@ async def run_query_tapper1(querys: list[str], proxies, wallets):
             for query in querys:
                 if wallet_index >= len(wallets_list):
                     wallet_i = None
+                    wallet_memonic = None
                 else:
                     wallet_i = wallets_list[wallet_index]
+                    wallet_memonic = wallets[wallet_i]
                 try:
-                    await Tapper(query=query, session_name=f"{name} {i}", multi_thread=False, wallet=wallet_i, wallet_memonic=wallets[wallet_i]).run(next(proxies_cycle) if proxies_cycle else None)
+                    await Tapper(query=query, session_name=f"{name} {i}", multi_thread=False, wallet=wallet_i, wallet_memonic=wallet_memonic).run(next(proxies_cycle) if proxies_cycle else None)
                 except InvalidSession:
                     logger.error(f"{query} is Invalid ")
 
