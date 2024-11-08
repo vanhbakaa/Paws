@@ -116,6 +116,8 @@ def get_wallets():
         for wallet in need_to_del:
             del wallets[wallet]
         # print(wallets)
+        with open("wallet.json", "w") as f:
+            json.dump(wallets, f, indent=4)
         return wallets
     else:
         logger.warning("<yellow>TO CONNECT WALLET YOU MUST GENERATE WALLET USING OPTION 4 FIRST!</yellow>")
