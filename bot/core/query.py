@@ -5,7 +5,7 @@ from itertools import cycle
 from time import time
 import aiohttp
 import cloudscraper
-from aiocfscrape import CloudflareScraper
+from aiocfscrape import CloudflareScraper 
 from aiofile import AIOFile
 from aiohttp_proxy import ProxyConnector
 from better_proxy import Proxy
