@@ -4,11 +4,14 @@ import asyncio
 import argparse
 import sys
 from itertools import cycle
+from urllib.parse import unquote
 
+from aiofile import AIOFile
 from pyrogram import Client
 from better_proxy import Proxy
 
 from bot.config import settings
+from bot.core.agents import generate_random_user_agent
 from bot.utils import logger
 from bot.core.tapper import run_tapper, run_tapper1
 from bot.core.query import run_query_tapper, run_query_tapper1
@@ -73,6 +76,33 @@ def get_proxies() -> list[Proxy]:
 
     return proxies
 
+def fetch_username(query):
+    try:
+        fetch_data = unquote(query).split("&user=")[1].split("&auth_date=")[0]
+        json_data = json.loads(fetch_data)
+        return json_data['username']
+    except:
+        logger.warning(f"Invaild query: {query}")
+        sys.exit()
+
+
+async def get_user_agent(session_name):
+    async with AIOFile('user_agents.json', 'r') as file:
+        content = await file.read()
+        user_agents = json.loads(content)
+
+    if session_name not in list(user_agents.keys()):
+        logger.info(f"{session_name} | Doesn't have user agent, Creating...")
+        ua = generate_random_user_agent(device_type='android', browser_type='chrome')
+        user_agents.update({session_name: ua})
+        async with AIOFile('user_agents.json', 'w') as file:
+            content = json.dumps(user_agents, indent=4)
+            await file.write(content)
+        return ua
+    else:
+        logger.info(f"{session_name} | Loading user agent from cache...")
+        return user_agents[session_name]
+
 
 async def get_tg_clients() -> list[Client]:
     global tg_clients
@@ -116,7 +146,7 @@ def get_wallets():
 
         for wallet in need_to_del:
             del wallets[wallet]
-            
+
         with open("wallet.json", "w") as f:
             json.dump(wallets, f, indent=4)
         # print(wallets)
@@ -215,7 +245,7 @@ async def run_tasks_query(query_ids: list[str]):
 
         wallet_index = 0
         tasks = []
-        for tg_client in tg_clients:
+        for query in query_ids:
             if wallet_index >= len(wallets):
                 wallet_i = None
             else:
@@ -224,10 +254,11 @@ async def run_tasks_query(query_ids: list[str]):
             tasks.append(
                 asyncio.create_task(
                     run_query_tapper(
-                        query=tg_client,
+                        query=query,
                         proxy=next(proxies_cycle) if proxies_cycle else None,
                         wallet=wallet_i,
-                        wallet_memonic=wallets_data.get(wallet_i)
+                        wallet_memonic=wallets_data.get(wallet_i),
+                        ua=await get_user_agent(fetch_username(query))
                     )
                 )
             )
@@ -240,7 +271,8 @@ async def run_tasks_query(query_ids: list[str]):
                     query=query,
                     proxy=next(proxies_cycle) if proxies_cycle else None,
                     wallet=None,
-                    wallet_memonic=None
+                    wallet_memonic=None,
+                    ua=await get_user_agent(fetch_username(query))
                 )
             )
             for query in query_ids
@@ -272,7 +304,8 @@ async def run_tasks(tg_clients: list[Client]):
                         tg_client=tg_client,
                         proxy=next(proxies_cycle) if proxies_cycle else None,
                         wallet=wallet_i,
-                        wallet_memonic=wallets_data.get(wallet_i)
+                        wallet_memonic=wallets_data.get(wallet_i),
+                        ua=await get_user_agent(tg_client.name)
                     )
                 )
             )
@@ -286,7 +319,8 @@ async def run_tasks(tg_clients: list[Client]):
                         tg_client=tg_client,
                         proxy=next(proxies_cycle) if proxies_cycle else None,
                         wallet=None,
-                        wallet_memonic=None
+                        wallet_memonic=None,
+                        ua=await get_user_agent(tg_client.name)
                     )
                 )
             )
