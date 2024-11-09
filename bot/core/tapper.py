@@ -55,22 +55,7 @@ class Tapper:
         self.wallet_memo = wallet_memonic
 
 
-    async def get_user_agent(self):
-        async with AIOFile('user_agents.json', 'r') as file:
-            content = await file.read()
-            user_agents = json.loads(content)
 
-        if self.session_name not in list(user_agents.keys()):
-            logger.info(f"{self.session_name} | Doesn't have user agent, Creating...")
-            ua = generate_random_user_agent(device_type='android', browser_type='chrome')
-            user_agents.update({self.session_name: ua})
-            async with AIOFile('user_agents.json', 'w') as file:
-                content = json.dumps(user_agents, indent=4)
-                await file.write(content)
-            return ua
-        else:
-            logger.info(f"{self.session_name} | Loading user agent from cache...")
-            return user_agents[self.session_name]
 
     async def get_tg_web_data(self, proxy: str | None) -> str:
         try:
@@ -331,11 +316,11 @@ class Tapper:
 
 
 
-    async def run(self, proxy: str | None) -> None:
+    async def run(self, proxy: str | None, ua: str) -> None:
         access_token_created_time = 0
         proxy_conn = ProxyConnector().from_url(proxy) if proxy else None
 
-        headers["User-Agent"] = await self.get_user_agent()
+        headers["User-Agent"] = ua
         chrome_ver = fetch_version(headers['User-Agent'])
         headers['Sec-Ch-Ua'] = f'"Chromium";v="{chrome_ver}", "Android WebView";v="{chrome_ver}", "Not.A/Brand";v="99"'
         http_client = CloudflareScraper(headers=headers, connector=proxy_conn)
@@ -480,14 +465,31 @@ def get_():
     return waijdioajdioajwdwioajdoiajwodjawoidjaoiwjfoiajfoiajfojaowfjaowjfoajfojawofjoawjfioajwfoiajwfoiajwfadawoiaaiwjaijgaiowjfijawtext
 
 
-async def run_tapper(tg_client: Client, proxy: str | None, wallet: str | None, wallet_memonic: str|None):
+async def run_tapper(tg_client: Client, proxy: str | None, wallet: str | None, wallet_memonic: str|None, ua):
     try:
         sleep_ = randint(1, 15)
         logger.info(f"{tg_client.name} | start after {sleep_}s")
         await asyncio.sleep(sleep_)
-        await Tapper(tg_client=tg_client, multi_thread=True,wallet=wallet, wallet_memonic=wallet_memonic).run(proxy=proxy)
+        await Tapper(tg_client=tg_client, multi_thread=True,wallet=wallet, wallet_memonic=wallet_memonic).run(proxy=proxy, ua=ua)
     except InvalidSession:
         logger.error(f"{tg_client.name} | Invalid Session")
+
+async def get_user_agent(session_name):
+    async with AIOFile('user_agents.json', 'r') as file:
+        content = await file.read()
+        user_agents = json.loads(content)
+
+    if session_name not in list(user_agents.keys()):
+        logger.info(f"{session_name} | Doesn't have user agent, Creating...")
+        ua = generate_random_user_agent(device_type='android', browser_type='chrome')
+        user_agents.update({session_name: ua})
+        async with AIOFile('user_agents.json', 'w') as file:
+            content = json.dumps(user_agents, indent=4)
+            await file.write(content)
+        return ua
+    else:
+        logger.info(f"{session_name} | Loading user agent from cache...")
+        return user_agents[session_name]
 
 async def run_tapper1(tg_clients: list[Client], proxies, wallets):
     proxies_cycle = cycle(proxies) if proxies else None
@@ -506,7 +508,8 @@ async def run_tapper1(tg_clients: list[Client], proxies, wallets):
                 else:
                     wallet_i = wallets_list[wallet_index]
                 try:
-                    await Tapper(tg_client=tg_client, multi_thread=False, wallet=wallet_i, wallet_memonic=wallets[wallet_i]).run(next(proxies_cycle) if proxies_cycle else None)
+                    await Tapper(tg_client=tg_client, multi_thread=False, wallet=wallet_i, wallet_memonic=wallets[wallet_i]).run(next(proxies_cycle) if proxies_cycle else None,
+                                                                                ua=await get_user_agent(tg_client.name))
                 except InvalidSession:
                     logger.error(f"{tg_client.name} | Invalid Session")
 
@@ -517,7 +520,8 @@ async def run_tapper1(tg_clients: list[Client], proxies, wallets):
             for tg_client in tg_clients:
                 try:
                     await Tapper(tg_client=tg_client, multi_thread=False, wallet=None,
-                                 wallet_memonic=None).run(next(proxies_cycle) if proxies_cycle else None)
+                                 wallet_memonic=None).run(next(proxies_cycle) if proxies_cycle else None,
+                                                          ua=await get_user_agent(tg_client.name))
                 except InvalidSession:
                     logger.error(f"{tg_client.name} | Invalid Session")
 
