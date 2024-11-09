@@ -16,6 +16,7 @@ from bot.core.registrator import register_sessions
 from tonsdk.contract.wallet import Wallets, WalletVersionEnum
 import json
 
+
 def get_used_wallets():
     with open("used_wallets.json", "r") as f:
         data = json.load(f)
@@ -102,7 +103,7 @@ def get_wallets():
         used_wallets = list(get_used_wallets().keys())
         with open("wallet.json", "r") as f:
             wallets = json.load(f)
-        
+
         if len(wallets) == 0 and settings.AUTO_CONNECT_WALLET:
             logger.warning("<yellow>TO CONNECT WALLET YOU MUST GENERATE WALLET USING OPTION 4 FIRST!</yellow>")
             sys.exit()
@@ -115,9 +116,10 @@ def get_wallets():
 
         for wallet in need_to_del:
             del wallets[wallet]
-        # print(wallets)
+            
         with open("wallet.json", "w") as f:
             json.dump(wallets, f, indent=4)
+        # print(wallets)
         return wallets
     else:
         logger.warning("<yellow>TO CONNECT WALLET YOU MUST GENERATE WALLET USING OPTION 4 FIRST!</yellow>")
@@ -130,6 +132,10 @@ async def process() -> None:
 
     action = parser.parse_args().action
 
+    if not os.path.exists("user_agents.json"):
+        with open("user_agents.json", 'w') as file:
+            file.write("{}")
+        logger.info("User agents file created successfully")
 
     if not action:
         print(start_text)
@@ -198,8 +204,6 @@ async def process() -> None:
 async def run_tasks_query(query_ids: list[str]):
     proxies = get_proxies()
     proxies_cycle = cycle(proxies) if proxies else None
-    account_name = [i for i in range(len(query_ids) + 10)]
-    name_cycle = cycle(account_name)
 
     if settings.AUTO_CONNECT_WALLET:
 
@@ -222,7 +226,6 @@ async def run_tasks_query(query_ids: list[str]):
                     run_query_tapper(
                         query=tg_client,
                         proxy=next(proxies_cycle) if proxies_cycle else None,
-                        name=f"Account{next(name_cycle)}",
                         wallet=wallet_i,
                         wallet_memonic=wallets_data.get(wallet_i)
                     )
@@ -236,7 +239,6 @@ async def run_tasks_query(query_ids: list[str]):
                 run_query_tapper(
                     query=query,
                     proxy=next(proxies_cycle) if proxies_cycle else None,
-                    name=f"Account{next(name_cycle)}",
                     wallet=None,
                     wallet_memonic=None
                 )
