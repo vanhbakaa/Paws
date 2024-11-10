@@ -157,10 +157,12 @@ def get_wallets():
 async def process() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("-a", "--action", type=int, help="Action to perform")
+    parser.add_argument("-m", "--multithread", type=str, help="Enable multi-threading")
 
     logger.info(f"Detected {len(get_session_names())} sessions | {len(get_proxies())} proxies")
 
     action = parser.parse_args().action
+    ans = parser.parse_args().multithread
 
     if not os.path.exists("user_agents.json"):
         with open("user_agents.json", 'w') as file:
@@ -184,13 +186,13 @@ async def process() -> None:
     if action == 2:
         await register_sessions()
     elif action == 1:
-        ans = None
-        while True:
-            ans = input("> Do you want to run the bot with multi-thread? (y/n) ")
-            if ans not in ["y", "n"]:
-                logger.warning("Answer must be y or n")
-            else:
-                break
+        if ans is None:
+            while True:
+                ans = input("> Do you want to run the bot with multi-thread? (y/n) ")
+                if ans not in ["y", "n"]:
+                    logger.warning("Answer must be y or n")
+                else:
+                    break
 
         if ans == "y":
             tg_clients = await get_tg_clients()
