@@ -505,10 +505,12 @@ async def run_tapper1(tg_clients: list[Client], proxies, wallets):
             for tg_client in tg_clients:
                 if wallet_index >= len(wallets_list):
                     wallet_i = None
+                    wallet_memonic = None
                 else:
                     wallet_i = wallets_list[wallet_index]
+                    wallet_memonic = wallets[wallet_i]
                 try:
-                    await Tapper(tg_client=tg_client, multi_thread=False, wallet=wallet_i, wallet_memonic=wallets[wallet_i]).run(next(proxies_cycle) if proxies_cycle else None,
+                    await Tapper(tg_client=tg_client, multi_thread=False, wallet=wallet_i, wallet_memonic=wallet_memonic).run(next(proxies_cycle) if proxies_cycle else None,
                                                                                 ua=await get_user_agent(tg_client.name))
                 except InvalidSession:
                     logger.error(f"{tg_client.name} | Invalid Session")
