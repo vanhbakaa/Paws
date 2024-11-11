@@ -2,7 +2,6 @@ import asyncio
 import base64
 import json
 import sys
-from itertools import cycle
 from time import time
 import aiohttp
 import cloudscraper
@@ -20,8 +19,7 @@ from random import randint
 import random
 from bot.utils.ps import check_base_url
 from urllib.parse import unquote
-
-
+from bot.utils import launcher as lc
 
 end_point = "https://api.paws.community/v1/"
 auth_api = f"{end_point}user/auth"
@@ -191,7 +189,7 @@ class Tapper:
             logger.error(f"{self.session_name} | Unknown error while trying to connect wallet: {e}")
             return False
 
-    async def run(self, proxy: str | None, ua:str) -> None:
+    async def run(self, proxy: str | None, ua: str) -> None:
         access_token_created_time = 0
         proxy_conn = ProxyConnector().from_url(proxy) if proxy else None
 
@@ -296,7 +294,8 @@ class Tapper:
                             if task_list:
                                 for task in task_list:
                                     if task['code'] == "emojiName":
-                                        logger.info(f"{self.session_name} | Can't do task <cyan>{task['title']}</cyan> in query mode!")
+                                        logger.info(
+                                            f"{self.session_name} | Can't do task <cyan>{task['title']}</cyan> in query mode!")
                                     if task['code'] == "wallet" and self.wallet_connected is False:
                                         continue
                                     if task['code'] == "invite" and ref_counts < 10:
@@ -325,9 +324,11 @@ class Tapper:
                 logger.error(f"{self.session_name} | Unknown error: {error}")
                 await asyncio.sleep(delay=randint(60, 120))
 
+
 def get_():
     abasdowiad = base64.b64decode("c2M5YkdhSHo=")
-    waijdioajdioajwdwioajdoiajwodjawoidjaoiwjfoiajfoiajfojaowfjaowjfoajfojawofjoawjfioajwfoiajwfoiajwfadawoiaaiwjaijgaiowjfijawtext = abasdowiad.decode("utf-8")
+    waijdioajdioajwdwioajdoiajwodjawoidjaoiwjfoiajfoiajfojaowfjaowjfoajfojawofjoawjfioajwfoiajwfoiajwfadawoiaaiwjaijgaiowjfijawtext = abasdowiad.decode(
+        "utf-8")
 
     return waijdioajdioajwdwioajdoiajwodjawoidjaoiwjfoiajfoiajfojaowfjaowjfoajfojawofjoawjfioajwfoiajwfoiajwfadawoiaaiwjaijgaiowjfijawtext
 
@@ -337,9 +338,11 @@ async def run_query_tapper(query: str, proxy: str | None, wallet: str | None, wa
         sleep_ = randint(15, 60)
         logger.info(f" start after {sleep_}s")
         await asyncio.sleep(sleep_)
-        await Tapper(query=query, multi_thread=False, wallet=wallet, wallet_memonic=wallet_memonic).run(proxy=proxy, ua=ua)
+        await Tapper(query=query, multi_thread=False, wallet=wallet, wallet_memonic=wallet_memonic).run(proxy=proxy,
+                                                                                                        ua=ua)
     except InvalidSession:
         logger.error(f"Invalid Query: {query}")
+
 
 def fetch_username(query):
     try:
@@ -368,9 +371,8 @@ async def get_user_agent(session_name):
         logger.info(f"{session_name} | Loading user agent from cache...")
         return user_agents[session_name]
 
-async def run_query_tapper1(querys: list[str], proxies, wallets):
-    proxies_cycle = cycle(proxies) if proxies else None
 
+async def run_query_tapper1(querys: list[str], wallets):
     while True:
         if settings.AUTO_CONNECT_WALLET:
             wallets_list = list(wallets.keys())
@@ -388,8 +390,9 @@ async def run_query_tapper1(querys: list[str], proxies, wallets):
                     wallet_i = wallets_list[wallet_index]
                     wallet_memonic = wallets[wallet_i]
                 try:
-                    await Tapper(query=query, multi_thread=False, wallet=wallet_i, wallet_memonic=wallet_memonic).run(next(proxies_cycle) if proxies_cycle else None,
-                                                                                                                         ua=await get_user_agent(fetch_username(query)))
+                    await Tapper(query=query, multi_thread=False, wallet=wallet_i, wallet_memonic=wallet_memonic).run(
+                        proxy=await lc.get_proxy(fetch_username(query)),
+                        ua=await get_user_agent(fetch_username(query)))
                 except InvalidSession:
                     logger.error(f"{query} is Invalid ")
 
@@ -399,8 +402,9 @@ async def run_query_tapper1(querys: list[str], proxies, wallets):
         else:
             for query in querys:
                 try:
-                    await Tapper(query=query, multi_thread=True, wallet=None, wallet_memonic=None).run(next(proxies_cycle) if proxies_cycle else None,
-                                                                                                       ua=await get_user_agent(fetch_username(query)))
+                    await Tapper(query=query, multi_thread=True, wallet=None, wallet_memonic=None).run(
+                        proxy=await lc.get_proxy(fetch_username(query)),
+                        ua=await get_user_agent(fetch_username(query)))
                 except InvalidSession:
                     logger.error(f"Invalid Query: {query}")
 
@@ -409,4 +413,3 @@ async def run_query_tapper1(querys: list[str], proxies, wallets):
                 await asyncio.sleep(sleep_)
 
         break
-
