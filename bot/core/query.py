@@ -343,7 +343,7 @@ async def run_query_tapper(query: str, proxy: str | None, wallet: str | None, wa
 
 def fetch_username(query):
     try:
-        fetch_data = unquote(query).split("&user=")[1].split("&auth_date=")[0]
+        fetch_data = unquote(query).split("user=")[1].split("&auth_date=")[0]
         json_data = json.loads(fetch_data)
         return json_data['username']
     except:
