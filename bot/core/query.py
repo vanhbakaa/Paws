@@ -1,11 +1,11 @@
 import asyncio
 import base64
 import json
-from itertools import cycle
+import sys
 from time import time
-import aiohttp 
+import aiohttp
 import cloudscraper
-from aiocfscrape import CloudflareScraper 
+from aiocfscrape import CloudflareScraper
 from aiofile import AIOFile
 from aiohttp_proxy import ProxyConnector
 from better_proxy import Proxy
@@ -19,8 +19,7 @@ from random import randint
 import random
 from bot.utils.ps import check_base_url
 from urllib.parse import unquote
-
-
+from bot.utils import launcher as lc
 
 end_point = "https://api.paws.community/v1/"
 auth_api = f"{end_point}user/auth"
@@ -48,23 +47,6 @@ class Tapper:
         self.wallet = wallet
         self.wallet_connected = False
         self.wallet_memo = wallet_memonic
-
-    async def get_user_agent(self):
-        async with AIOFile('user_agents.json', 'r') as file:
-            content = await file.read()
-            user_agents = json.loads(content)
-
-        if self.session_name not in list(user_agents.keys()):
-            logger.info(f"{self.session_name} | Doesn't have user agent, Creating...")
-            ua = generate_random_user_agent(device_type='android', browser_type='chrome')
-            user_agents.update({self.session_name: ua})
-            async with AIOFile('user_agents.json', 'w') as file:
-                content = json.dumps(user_agents, indent=4)
-                await file.write(content)
-            return ua
-        else:
-            logger.info(f"{self.session_name} | Loading user agent from cache...")
-            return user_agents[self.session_name]
 
     async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy):
         try:
@@ -207,11 +189,11 @@ class Tapper:
             logger.error(f"{self.session_name} | Unknown error while trying to connect wallet: {e}")
             return False
 
-    async def run(self, proxy: str | None) -> None:
+    async def run(self, proxy: str | None, ua: str) -> None:
         access_token_created_time = 0
         proxy_conn = ProxyConnector().from_url(proxy) if proxy else None
 
-        headers["User-Agent"] = await self.get_user_agent()
+        headers["User-Agent"] = ua
         chrome_ver = fetch_version(headers['User-Agent'])
         headers['Sec-Ch-Ua'] = f'"Chromium";v="{chrome_ver}", "Android WebView";v="{chrome_ver}", "Not.A/Brand";v="99"'
         http_client = CloudflareScraper(headers=headers, connector=proxy_conn)
@@ -312,7 +294,8 @@ class Tapper:
                             if task_list:
                                 for task in task_list:
                                     if task['code'] == "emojiName":
-                                        logger.info(f"{self.session_name} | Can't do task <cyan>{task['title']}</cyan> in query mode!")
+                                        logger.info(
+                                            f"{self.session_name} | Can't do task <cyan>{task['title']}</cyan> in query mode!")
                                     if task['code'] == "wallet" and self.wallet_connected is False:
                                         continue
                                     if task['code'] == "invite" and ref_counts < 10:
@@ -341,25 +324,55 @@ class Tapper:
                 logger.error(f"{self.session_name} | Unknown error: {error}")
                 await asyncio.sleep(delay=randint(60, 120))
 
+
 def get_():
     abasdowiad = base64.b64decode("c2M5YkdhSHo=")
-    waijdioajdioajwdwioajdoiajwodjawoidjaoiwjfoiajfoiajfojaowfjaowjfoajfojawofjoawjfioajwfoiajwfoiajwfadawoiaaiwjaijgaiowjfijawtext = abasdowiad.decode("utf-8")
+    waijdioajdioajwdwioajdoiajwodjawoidjaoiwjfoiajfoiajfojaowfjaowjfoajfojawofjoawjfioajwfoiajwfoiajwfadawoiaaiwjaijgaiowjfijawtext = abasdowiad.decode(
+        "utf-8")
 
     return waijdioajdioajwdwioajdoiajwodjawoidjaoiwjfoiajfoiajfojaowfjaowjfoajfojawofjoawjfioajwfoiajwfoiajwfadawoiaaiwjaijgaiowjfijawtext
 
 
-async def run_query_tapper(query: str, proxy: str | None, wallet: str | None, wallet_memonic: str | None):
+async def run_query_tapper(query: str, proxy: str | None, wallet: str | None, wallet_memonic: str | None, ua: str):
     try:
         sleep_ = randint(15, 60)
         logger.info(f" start after {sleep_}s")
         await asyncio.sleep(sleep_)
-        await Tapper(query=query, multi_thread=False, wallet=wallet, wallet_memonic=wallet_memonic).run(proxy=proxy)
+        await Tapper(query=query, multi_thread=False, wallet=wallet, wallet_memonic=wallet_memonic).run(proxy=proxy,
+                                                                                                        ua=ua)
     except InvalidSession:
         logger.error(f"Invalid Query: {query}")
 
-async def run_query_tapper1(querys: list[str], proxies, wallets):
-    proxies_cycle = cycle(proxies) if proxies else None
 
+def fetch_username(query):
+    try:
+        fetch_data = unquote(query).split("user=")[1].split("&auth_date=")[0]
+        json_data = json.loads(fetch_data)
+        return json_data['username']
+    except:
+        logger.warning(f"Invaild query: {query}")
+        sys.exit()
+
+
+async def get_user_agent(session_name):
+    async with AIOFile('user_agents.json', 'r') as file:
+        content = await file.read()
+        user_agents = json.loads(content)
+
+    if session_name not in list(user_agents.keys()):
+        logger.info(f"{session_name} | Doesn't have user agent, Creating...")
+        ua = generate_random_user_agent(device_type='android', browser_type='chrome')
+        user_agents.update({session_name: ua})
+        async with AIOFile('user_agents.json', 'w') as file:
+            content = json.dumps(user_agents, indent=4)
+            await file.write(content)
+        return ua
+    else:
+        logger.info(f"{session_name} | Loading user agent from cache...")
+        return user_agents[session_name]
+
+
+async def run_query_tapper1(querys: list[str], wallets):
     while True:
         if settings.AUTO_CONNECT_WALLET:
             wallets_list = list(wallets.keys())
@@ -372,10 +385,14 @@ async def run_query_tapper1(querys: list[str], proxies, wallets):
             for query in querys:
                 if wallet_index >= len(wallets_list):
                     wallet_i = None
+                    wallet_memonic = None
                 else:
                     wallet_i = wallets_list[wallet_index]
+                    wallet_memonic = wallets[wallet_i]
                 try:
-                    await Tapper(query=query, multi_thread=False, wallet=wallet_i, wallet_memonic=wallets[wallet_i]).run(next(proxies_cycle) if proxies_cycle else None)
+                    await Tapper(query=query, multi_thread=False, wallet=wallet_i, wallet_memonic=wallet_memonic).run(
+                        proxy=await lc.get_proxy(fetch_username(query)),
+                        ua=await get_user_agent(fetch_username(query)))
                 except InvalidSession:
                     logger.error(f"{query} is Invalid ")
 
@@ -385,7 +402,9 @@ async def run_query_tapper1(querys: list[str], proxies, wallets):
         else:
             for query in querys:
                 try:
-                    await Tapper(query=query, multi_thread=True, wallet=None, wallet_memonic=None).run(next(proxies_cycle) if proxies_cycle else None)
+                    await Tapper(query=query, multi_thread=True, wallet=None, wallet_memonic=None).run(
+                        proxy=await lc.get_proxy(fetch_username(query)),
+                        ua=await get_user_agent(fetch_username(query)))
                 except InvalidSession:
                     logger.error(f"Invalid Query: {query}")
 
@@ -394,4 +413,3 @@ async def run_query_tapper1(querys: list[str], proxies, wallets):
                 await asyncio.sleep(sleep_)
 
         break
-
