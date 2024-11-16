@@ -32,7 +32,7 @@ link_wallet = f"{end_point}user/wallet"
 class Tapper:
     def __init__(self, query: str, multi_thread: bool, wallet: str | None, wallet_memonic: str | None):
         self.query = query
-        fetch_data = unquote(self.query).split("user=")[1].split("&auth_date=")[0]
+        fetch_data = unquote(self.query).split("&user=")[1].split("&auth_date=")[0]
         json_data = json.loads(fetch_data)
         self.session_name = json_data['username']
         self.first_name = ''
@@ -389,6 +389,7 @@ async def run_query_tapper1(querys: list[str], wallets):
                 else:
                     wallet_i = wallets_list[wallet_index]
                     wallet_memonic = wallets[wallet_i]
+                    wallet_index += 1
                 try:
                     await Tapper(query=query, multi_thread=False, wallet=wallet_i, wallet_memonic=wallet_memonic).run(
                         proxy=await lc.get_proxy(fetch_username(query)),
