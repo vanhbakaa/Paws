@@ -40,7 +40,11 @@ class Tapper:
             except:
                 logger.warning(f"Invaild query: {query}")
                 sys.exit()
-        json_data = json.loads(fetch_data)
+        try:
+            json_data = json.loads(fetch_data)
+        except:
+            fetch_data = unquote(fetch_data)
+            json_data = json.loads(fetch_data)
         self.session_name = json_data['username']
         self.first_name = ''
         self.last_name = ''
@@ -362,8 +366,13 @@ def fetch_username(query):
             json_data = json.loads(fetch_data)
             return json_data['username']
         except:
-            logger.warning(f"Invaild query: {query}")
-            sys.exit()
+            try:
+                fetch_data = unquote(unquote(query)).split("user=")[1].split("&auth_date=")[0]
+                json_data = json.loads(fetch_data)
+                return json_data['username']
+            except:
+                logger.warning(f"Invaild query: {query}")
+                sys.exit()
 
 
 
