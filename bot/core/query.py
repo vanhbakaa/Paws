@@ -61,6 +61,7 @@ class Tapper:
         self.wallet = wallet
         self.wallet_connected = False
         self.wallet_memo = wallet_memonic
+        self.black_list = ['6742a9559f3873c36978389d', "6742a9639f3873c36978389f", "6742a9499f3873c36978389b"]
 
     async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy):
         try:
@@ -307,6 +308,8 @@ class Tapper:
                             task_list = await self.get_tasks(session)
                             if task_list:
                                 for task in task_list:
+                                    if task['_id'] in self.black_list:
+                                        continue
                                     if task['code'] == "emojiName":
                                         logger.info(
                                             f"{self.session_name} | Can't do task <cyan>{task['title']}</cyan> in query mode!")
@@ -369,13 +372,8 @@ def fetch_username(query):
             json_data = json.loads(fetch_data)
             return json_data['username']
         except:
-            try:
-                fetch_data = unquote(unquote(query)).split("user=")[1].split("&auth_date=")[0]
-                json_data = json.loads(fetch_data)
-                return json_data['username']
-            except:
-                logger.warning(f"Invaild query: {query}")
-                return ""
+            logger.warning(f"Invaild query: {query}")
+            sys.exit()
 
 
 
