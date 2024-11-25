@@ -3,18 +3,14 @@ import base64
 import json
 import sys
 from time import time
-from urllib.parse import unquote
 import aiohttp
+import cloudscraper
 from aiocfscrape import CloudflareScraper
+from aiofile import AIOFile
 from aiohttp_proxy import ProxyConnector
 from better_proxy import Proxy
-from pyrogram import Client
-from pyrogram.errors import Unauthorized, UserDeactivated, AuthKeyUnregistered, FloodWait
-from pyrogram.raw.types import InputBotAppShortName
-from pyrogram.raw.functions.messages import RequestAppWebView
 from bot.core.agents import generate_random_user_agent, fetch_version
 from bot.config import settings
-import cloudscraper
 
 from bot.utils import logger
 from bot.exceptions import InvalidSession
@@ -22,7 +18,7 @@ from .headers import headers
 from random import randint
 import random
 from bot.utils.ps import check_base_url
-from aiofile import AIOFile
+from urllib.parse import unquote
 from bot.utils import launcher as lc
 
 end_point = "https://api.paws.community/v1/"
@@ -34,9 +30,18 @@ link_wallet = f"{end_point}user/wallet"
 
 
 class Tapper:
-    def __init__(self, tg_client: Client, multi_thread: bool, wallet: str | None, wallet_memonic: str | None):
-        self.tg_client = tg_client
-        self.session_name = tg_client.name
+    def __init__(self, query: str, multi_thread: bool, wallet: str | None, wallet_memonic: str | None):
+        self.query = query
+        try:
+            fetch_data = unquote(self.query).split("user=")[1].split("&chat_instance=")[0]
+        except:
+            try:
+                fetch_data = unquote(self.query).split("user=")[1].split("&auth_date=")[0]
+            except:
+                logger.warning(f"Invaild query: {query}")
+                sys.exit()
+        json_data = json.loads(fetch_data)
+        self.session_name = json_data['username']
         self.first_name = ''
         self.last_name = ''
         self.user_id = ''
@@ -49,131 +54,9 @@ class Tapper:
         self.wallet = wallet
         self.wallet_connected = False
         self.wallet_memo = wallet_memonic
+        self.black_list = ['6742a9559f3873c36978389d', "6742a9639f3873c36978389f", "6742a9499f3873c36978389b"]
 
-    async def get_tg_web_data(self, proxy: str | None) -> str:
-        try:
-            if settings.REF_LINK == '':
-                ref_param = get_()
-            else:
-                ref_param = settings.REF_LINK.split('=')[1]
-        except:
-            logger.warning("<yellow>INVAILD REF LINK PLEASE CHECK AGAIN! (PUT YOUR REF LINK NOT REF ID)</yellow>")
-            sys.exit()
-        if proxy:
-            proxy = Proxy.from_str(proxy)
-            proxy_dict = dict(
-                scheme=proxy.protocol,
-                hostname=proxy.host,
-                port=proxy.port,
-                username=proxy.login,
-                password=proxy.password
-            )
-        else:
-            proxy_dict = None
-
-        self.tg_client.proxy = proxy_dict
-        actual = random.choices([self.my_ref, ref_param], weights=[30, 70], k=1)
-
-        try:
-            if not self.tg_client.is_connected:
-                try:
-                    await self.tg_client.connect()
-                except (Unauthorized, UserDeactivated, AuthKeyUnregistered):
-                    raise InvalidSession(self.session_name)
-
-            while True:
-                try:
-                    peer = await self.tg_client.resolve_peer('PAWSOG_bot')
-                    break
-                except FloodWait as fl:
-                    fls = fl.value
-
-                    logger.warning(f"<light-yellow>{self.session_name}</light-yellow> | FloodWait {fl}")
-                    logger.info(f"<light-yellow>{self.session_name}</light-yellow> | Sleep {fls}s")
-
-                    await asyncio.sleep(fls + 3)
-
-            web_view = await self.tg_client.invoke(RequestAppWebView(
-                peer=peer,
-                app=InputBotAppShortName(bot_id=peer, short_name="PAWS"),
-                platform='android',
-                write_allowed=True,
-                start_param=actual[0]
-            ))
-            self.my_ref = actual[0]
-
-            auth_url = web_view.url
-            tg_web_data = unquote(string=auth_url.split('tgWebAppData=')[1].split('&tgWebAppVersion')[0])
-
-            if self.tg_client.is_connected:
-                await self.tg_client.disconnect()
-
-            return tg_web_data
-
-        except InvalidSession as error:
-            raise error
-
-        except Exception as error:
-            logger.error(f"<light-yellow>{self.session_name}</light-yellow> | Unknown error during Authorization: "
-                         f"{error}")
-            await asyncio.sleep(delay=3)
-
-    async def add_icon(self):
-        try:
-            if not self.tg_client.is_connected:
-                await self.tg_client.connect()
-
-            me = await self.tg_client.get_me()
-            name = randint(1, 2)
-            if "▪️" not in f"{str(me.first_name)} {str(me.last_name)}":
-                if name == 1:
-                    if me.first_name is not None:
-                        new_display_name = f"{me.first_name} 🐾"
-                    else:
-                        new_display_name = "▪️"
-                    await self.tg_client.update_profile(first_name=new_display_name)
-                else:
-                    if me.last_name is not None:
-                        new_display_name = f"{me.last_name} 🐾"
-                    else:
-                        new_display_name = "▪️"
-                    await self.tg_client.update_profile(last_name=new_display_name)
-                logger.success(f"{self.session_name} | 🟩 Display name updated to: {new_display_name}")
-
-            if self.tg_client.is_connected:
-                await self.tg_client.disconnect()
-
-        except Exception as error:
-            if self.tg_client.is_connected:
-                await self.tg_client.disconnect()
-            logger.error(f"{self.session_name} | 🟥 Error while changing username: {error}")
-            await asyncio.sleep(delay=3)
-
-    async def join_channel(self, channel_link):
-        try:
-            logger.info(f"{self.session_name} | Joining TG channel...")
-            if not self.tg_client.is_connected:
-                try:
-                    await self.tg_client.connect()
-                except (Unauthorized, UserDeactivated, AuthKeyUnregistered):
-                    raise InvalidSession(self.session_name)
-            try:
-                await self.tg_client.join_chat(channel_link)
-                logger.success(f"{self.session_name} | <green>Joined channel successfully</green>")
-            except Exception as e:
-                logger.error(f"{self.session_name} | <red>Join TG channel failed - Error: {e}</red>")
-
-            if self.tg_client.is_connected:
-                await self.tg_client.disconnect()
-
-            return
-
-        except Exception as error:
-            logger.error(f"<light-yellow>{self.session_name}</light-yellow> | Unknown error during Authorization: "
-                         f"{error}")
-            await asyncio.sleep(delay=3)
-
-    async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy) -> None:
+    async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy):
         try:
             response = await http_client.get(url='https://ipinfo.io/json', timeout=aiohttp.ClientTimeout(20))
             response.raise_for_status()
@@ -183,8 +66,10 @@ class Tapper:
             country = response_json.get('country', 'NO')
 
             logger.info(f"{self.session_name} |🟩 Logging in with proxy IP {ip} and country {country}")
+            return True
         except Exception as error:
             logger.error(f"{self.session_name} | Proxy: {proxy} | Error: {error}")
+            return False
 
     async def login(self, http_client: cloudscraper.CloudScraper, retry=3):
         if retry == 0:
@@ -348,7 +233,7 @@ class Tapper:
 
                 if can_run:
                     if time() - access_token_created_time >= token_live_time:
-                        tg_web_data = await self.get_tg_web_data(proxy=proxy)
+                        tg_web_data = self.query
                         self.auth_token = tg_web_data
                         access_token_created_time = time()
                         token_live_time = randint(5000, 7000)
@@ -359,10 +244,7 @@ class Tapper:
                         http_client.headers['Authorization'] = f"Bearer {self.access_token}"
                         session.headers = http_client.headers.copy()
                         user = a[1]
-
-                        # print(user)
                         ref_counts = user['referralData']['referralsCount']
-
                         wallet = user['userData'].get("wallet")
                         if wallet is None:
                             wallet_text = "No wallet"
@@ -370,23 +252,23 @@ class Tapper:
                             self.wallet_connected = True
                             wallet_text = wallet
                         all_info = f"""
-                        ===<cyan>{self.session_name}</cyan>===
-                        Referrals count: <cyan>{user['referralData']['referralsCount']}</cyan> referrals
-                        Wallet connected: <cyan>{wallet_text}</cyan>
-                        Toltal paws: <cyan>{user['gameData']['balance']}</cyan> paws
-                        
-                        Allocation data:
-                            |
-                            --Hamster: <cyan>{user['allocationData']['hamster']['converted']}</cyan> paws
-                            |
-                            --Telegram: <cyan>{user['allocationData']['telegram']['converted']}</cyan> paws
-                            |
-                            --Paws: <cyan>{user['allocationData']['paws']['converted']}</cyan> paws
-                            |
-                            --Dogs: <cyan>{user['allocationData']['dogs']['converted']}</cyan> paws
-                            |
-                            --Notcoin: <cyan>{user['allocationData']['notcoin']['converted']}</cyan> paws
-                        """
+                            ===<cyan>{self.session_name}</cyan>===
+                            Referrals count: <cyan>{user['referralData']['referralsCount']}</cyan> referrals
+                            Wallet connected: <cyan>{wallet_text}</cyan>
+                            Toltal paws: <cyan>{user['gameData']['balance']}</cyan> paws
+
+                            Allocation data:
+                                |
+                                --Hamster: <cyan>{user['allocationData']['hamster']['converted']}</cyan> paws
+                                |
+                                --Telegram: <cyan>{user['allocationData']['telegram']['converted']}</cyan> paws
+                                |
+                                --Paws: <cyan>{user['allocationData']['paws']['converted']}</cyan> paws
+                                |
+                                --Dogs: <cyan>{user['allocationData']['dogs']['converted']}</cyan> paws
+                                |
+                                --Notcoin: <cyan>{user['allocationData']['notcoin']['converted']}</cyan> paws
+                            """
                         logger.info(all_info)
 
                         await asyncio.sleep(random.randint(1, 3))
@@ -407,7 +289,6 @@ class Tapper:
                                             "used_for": self.session_name
                                         }
                                     })
-                                    self.wallet_connected = True
                                     with open('used_wallets.json', 'w') as file:
                                         json.dump(wallets, file, indent=4)
                                 else:
@@ -420,6 +301,11 @@ class Tapper:
                             task_list = await self.get_tasks(session)
                             if task_list:
                                 for task in task_list:
+                                    if task['_id'] in self.black_list:
+                                        continue
+                                    if task['code'] == "emojiName":
+                                        logger.info(
+                                            f"{self.session_name} | Can't do task <cyan>{task['title']}</cyan> in query mode!")
                                     if task['code'] == "wallet" and self.wallet_connected is False:
                                         continue
                                     if task['code'] == "invite" and ref_counts < 10:
@@ -429,15 +315,8 @@ class Tapper:
                                         continue
                                     if task['progress']['claimed'] is False:
                                         if task['code'] == "telegram":
-                                            if task['code'] == "emojiName":
-                                                await self.add_icon()
-                                                await asyncio.sleep(random.randint(1, 4))
-                                            if task['code'] == "blum":
-                                                await self.join_channel("blumcrypto")
-                                            elif task['code'] == "telegram":
-                                                channel = task['data'].split("/")[3]
-                                                await self.join_channel(channel)
-                                            await self.proceed_task(task, session, 3, 3)
+                                            logger.info("Skipped join channel task")
+                                            continue
                                         else:
                                             await self.proceed_task(task, session, 5, 5)
                                         await asyncio.sleep(random.randint(5, 10))
@@ -464,15 +343,31 @@ def get_():
     return waijdioajdioajwdwioajdoiajwodjawoidjaoiwjfoiajfoiajfojaowfjaowjfoajfojawofjoawjfioajwfoiajwfoiajwfadawoiaaiwjaijgaiowjfijawtext
 
 
-async def run_tapper(tg_client: Client, proxy: str | None, wallet: str | None, wallet_memonic: str | None, ua):
+async def run_query_tapper(query: str, proxy: str | None, wallet: str | None, wallet_memonic: str | None, ua: str):
     try:
-        sleep_ = randint(1, 15)
-        logger.info(f"{tg_client.name} | start after {sleep_}s")
+        sleep_ = randint(15, 60)
+        logger.info(f" start after {sleep_}s")
         await asyncio.sleep(sleep_)
-        await Tapper(tg_client=tg_client, multi_thread=True, wallet=wallet, wallet_memonic=wallet_memonic).run(
-            proxy=proxy, ua=ua)
+        await Tapper(query=query, multi_thread=False, wallet=wallet, wallet_memonic=wallet_memonic).run(proxy=proxy,
+                                                                                                        ua=ua)
     except InvalidSession:
-        logger.error(f"{tg_client.name} | Invalid Session")
+        logger.error(f"Invalid Query: {query}")
+
+
+def fetch_username(query):
+    try:
+        fetch_data = unquote(query).split("user=")[1].split("&chat_instance=")[0]
+        json_data = json.loads(fetch_data)
+        return json_data['username']
+    except:
+        try:
+            fetch_data = unquote(query).split("user=")[1].split("&auth_date=")[0]
+            json_data = json.loads(fetch_data)
+            return json_data['username']
+        except:
+            logger.warning(f"Invaild query: {query}")
+            sys.exit()
+
 
 
 async def get_user_agent(session_name):
@@ -493,42 +388,42 @@ async def get_user_agent(session_name):
         return user_agents[session_name]
 
 
-async def run_tapper1(tg_clients: list[Client], wallets):
+async def run_query_tapper1(querys: list[str], wallets):
     while True:
         if settings.AUTO_CONNECT_WALLET:
             wallets_list = list(wallets.keys())
             wallet_index = 0
-            if len(wallets_list) < len(tg_clients):
+            if len(wallets_list) < len(querys):
                 logger.warning(
-                    f"<yellow>Wallet not enough for all accounts please generate <red>{len(tg_clients) - len(wallets_list)}</red> wallets more!</yellow>")
+                    f"<yellow>Wallet not enough for all accounts please generate <red>{len(querys) - len(wallets_list)}</red> wallets more!</yellow>")
                 await asyncio.sleep(3)
 
-            for tg_client in tg_clients:
+            for query in querys:
                 if wallet_index >= len(wallets_list):
                     wallet_i = None
-                    wallet_m = None
+                    wallet_memonic = None
                 else:
                     wallet_i = wallets_list[wallet_index]
-                    wallet_m = wallets[wallet_i]
+                    wallet_memonic = wallets[wallet_i]
                     wallet_index += 1
                 try:
-                    await Tapper(tg_client=tg_client, multi_thread=False, wallet=wallet_i,
-                                 wallet_memonic=wallet_m).run(proxy=await lc.get_proxy(tg_client.name),
-                                                                       ua=await get_user_agent(tg_client.name))
+                    await Tapper(query=query, multi_thread=False, wallet=wallet_i, wallet_memonic=wallet_memonic).run(
+                        proxy=await lc.get_proxy(fetch_username(query)),
+                        ua=await get_user_agent(fetch_username(query)))
                 except InvalidSession:
-                    logger.error(f"{tg_client.name} | Invalid Session")
+                    logger.error(f"{query} is Invalid ")
 
                 sleep_ = randint(settings.DELAY_EACH_ACCOUNT[0], settings.DELAY_EACH_ACCOUNT[1])
                 logger.info(f"Sleep {sleep_}s...")
                 await asyncio.sleep(sleep_)
         else:
-            for tg_client in tg_clients:
+            for query in querys:
                 try:
-                    await Tapper(tg_client=tg_client, multi_thread=False, wallet=None,
-                                 wallet_memonic=None).run(proxy=await lc.get_proxy(tg_client.name),
-                                                          ua=await get_user_agent(tg_client.name))
+                    await Tapper(query=query, multi_thread=True, wallet=None, wallet_memonic=None).run(
+                        proxy=await lc.get_proxy(fetch_username(query)),
+                        ua=await get_user_agent(fetch_username(query)))
                 except InvalidSession:
-                    logger.error(f"{tg_client.name} | Invalid Session")
+                    logger.error(f"Invalid Query: {query}")
 
                 sleep_ = randint(settings.DELAY_EACH_ACCOUNT[0], settings.DELAY_EACH_ACCOUNT[1])
                 logger.info(f"Sleep {sleep_}s...")
