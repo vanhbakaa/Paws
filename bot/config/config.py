@@ -14,7 +14,8 @@ class Settings(BaseSettings):
     AUTO_CONNECT_WALLET: bool = False
 
     DELAY_EACH_ACCOUNT: list[int] = [20, 30]
-    IGNORE_TASKS: list[str] = ["boost"]
+    IGNORE_TASKS: list[str] = ["boost", "vote", "voteup", "votedown", "mystery"]
+    DISABLE_JOIN_CHANNEL_TASKS: bool = True
     ADVANCED_ANTI_DETECTION: bool = True
 
     USE_PROXY_FROM_FILE: bool = False
