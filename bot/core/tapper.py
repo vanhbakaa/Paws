@@ -31,6 +31,7 @@ quest_list = f"{end_point}quests/list"
 complete_task = f"{end_point}quests/completed"
 claim_task = f"{end_point}quests/claim"
 link_wallet = f"{end_point}user/wallet"
+grinch_api = f"{end_point}user/grinch"
 
 
 class Tapper:
@@ -242,6 +243,23 @@ class Tapper:
             logger.error(f"{self.session_name} | Unknown error while trying to get tasks: {e}")
             return None
 
+    async def get_task_2(self, http_client: cloudscraper.CloudScraper):
+        try:
+            logger.info(f"{self.session_name} | Getting christmas tasks...")
+            tasks = http_client.get(f"{quest_list}?type=christmas")
+            if tasks.status_code == 200:
+                res = tasks.json()
+                data = res['data']
+                # print(res)
+                return data
+            else:
+                logger.warning(f"{self.session_name} | <yellow>Failed to get christmas task: {tasks.status_code}</yellow>")
+                return None
+        except Exception as e:
+            # traceback.print_exc()
+            logger.error(f"{self.session_name} | Unknown error while trying to get tasks: {e}")
+            return None
+
     async def claim_task(self, task, http_client: cloudscraper.CloudScraper, attempt=10, maxattempt=10):
         if attempt == 0:
             return False
@@ -254,15 +272,25 @@ class Tapper:
             tasks = http_client.post(claim_task, json=payload)
             if tasks.status_code == 201:
                 res = tasks.json()
-                data = res['data']
-                if data:
-                    logger.success(
-                        f"{self.session_name} | <green>Successfully claimed task: <cyan>{task['title']}</cyan> - Earned <cyan>{task['rewards'][0]['amount']}</cyan> paws</green>")
-                    return True
+                # print(res)
+                if "data" in list(res.keys()):
+                    data = res['success']
+                    if data:
+                        try:
+                            logger.success(
+                                f"{self.session_name} | <green>Successfully claimed task: <cyan>{task['title']}</cyan> - Earned <cyan>{task['rewards'][0]['amount']}</cyan> paws</green>")
+                        except:
+                            logger.success(
+                                f"{self.session_name} | <green>Successfully claimed task: {task['title']}</green>")
+                        return True
+                    else:
+                        logger.info(f"{self.session_name} | Failed to claim task: {task['title']}, Retrying...")
+                        await asyncio.sleep(random.randint(3, 5))
+                        return await self.claim_task(task, http_client, attempt - 1)
                 else:
-                    logger.info(f"{self.session_name} | Failed to claim task: {task['title']}, Retrying...")
-                    await asyncio.sleep(random.randint(3, 5))
-                    return await self.claim_task(task, http_client, attempt - 1)
+                    if tasks.json().get("success"):
+                        logger.success(f"{self.session_name} | <green>Successfully claimed task: {task['title']}</green>")
+                        return True
             else:
                 logger.warning(
                     f"{self.session_name} | <yellow>Failed to complete {task['title']}: {tasks.status_code}</yellow>")
@@ -322,6 +350,21 @@ class Tapper:
         except Exception as e:
             logger.error(f"{self.session_name} | Unknown error while trying to connect wallet: {e}")
             return False
+
+    async def active_grinch(self, http_client: cloudscraper.CloudScraper):
+        try:
+            res = http_client.post(grinch_api)
+            if res.status_code == 201 and res.json().get("success") is True:
+                logger.success(f"{self.session_name} | <green>Grinch successfully actived!</green>")
+                return True
+            else:
+                print(res.text)
+                return False
+        except Exception as e:
+            logger.error(f"{self.session_name} | Unknown error while trying to active grinch: {e}")
+            return False
+
+
 
     async def run(self, proxy: str | None, ua: str) -> None:
         access_token_created_time = 0
@@ -383,6 +426,11 @@ class Tapper:
 
                         # print(user)
                         ref_counts = user['referralData']['referralsCount']
+                        grinch = user.get("grinchRemoved")
+
+                        if grinch is None:
+                            await self.active_grinch(session)
+                            continue
 
                         wallet = user['userData'].get("wallet")
                         if wallet is None:
@@ -436,6 +484,15 @@ class Tapper:
                                         f"{self.session_name} | <yellow>Failed to bind with wallet: {self.wallet}</yellow>")
                             else:
                                 logger.info(f"{self.session_name} | Already bind with wallet: {wallet}")
+
+                        if grinch is False:
+                            tasks = await self.get_task_2(session)
+                            for task in tasks:
+                                if task['progress']['claimed'] is False:
+                                    await self.proceed_task(task, session, 3, 3)
+                                    await asyncio.sleep(random.randint(5, 10))
+
+                            logger.success(f"{self.session_name} | <green>Completed all christmas tasks. Your paws is back!</green>")
 
                         if settings.AUTO_TASK:
                             task_list = await self.get_tasks(session)
