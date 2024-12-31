@@ -11,12 +11,13 @@ class Settings(BaseSettings):
     REF_LINK: str = ""
 
     AUTO_TASK: bool = True
-    AUTO_CONNECT_WALLET: bool = False
+    AUTO_CONNECT_WALLET: bool = True
+    AUTO_DISCONNECT_WALLET: bool = False
 
     DELAY_EACH_ACCOUNT: list[int] = [20, 30]
     IGNORE_TASKS: list[str] = ["boost", "vote", "voteup", "votedown", "mystery"]
     DISABLE_JOIN_CHANNEL_TASKS: bool = True
-    ADVANCED_ANTI_DETECTION: bool = True
+    ADVANCED_ANTI_DETECTION: bool = False
 
     USE_PROXY_FROM_FILE: bool = False
 
