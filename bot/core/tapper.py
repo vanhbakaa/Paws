@@ -260,11 +260,21 @@ class Tapper:
             logger.error(f"{self.session_name} | Unknown error while trying to get tasks: {e}")
             return None
 
+    def get_pos(self):
+        return randint(200, 500), randint(250, 900)
+
     async def claim_task(self, task, http_client: cloudscraper.CloudScraper, attempt=10, maxattempt=10):
         if attempt == 0:
             return False
         try:
+            x, y = self.get_pos()
+            timestamp = int(time() * 1000)
             payload = {
+                "additionalData": {
+                    "x": x,
+                    "y": y,
+                    "timestamp": timestamp
+                },
                 "questId": task['_id']
             }
             logger.info(
@@ -304,7 +314,14 @@ class Tapper:
         if attempt == 0:
             return False
         try:
+            x, y = self.get_pos()
+            timestamp = int(time() * 1000)
             payload = {
+                "additionalData": {
+                    "x": x,
+                    "y": y,
+                    "timestamp": timestamp
+                },
                 "questId": task['_id']
             }
             logger.info(
@@ -364,6 +381,21 @@ class Tapper:
             logger.error(f"{self.session_name} | Unknown error while trying to active grinch: {e}")
             return False
 
+    async def disconnect_wallet(self, http_client: cloudscraper.CloudScraper):
+        try:
+            payload = {
+                "wallet": ""
+            }
+            res = http_client.post(link_wallet, json=payload)
+            if res.status_code == 201 and res.json().get("success") is True:
+                logger.success(f"{self.session_name} | <green>Successfully disconnected wallet!</green>")
+                return True
+            else:
+                print(res.text)
+                return False
+        except Exception as e:
+            logger.error(f"{self.session_name} | Unknown error while trying to active grinch: {e}")
+            return False
 
 
     async def run(self, proxy: str | None, ua: str) -> None:
@@ -460,8 +492,12 @@ class Tapper:
 
                         await asyncio.sleep(random.randint(1, 3))
 
-                        if settings.AUTO_CONNECT_WALLET and self.wallet is not None:
-                            if wallet is None:
+                        if settings.AUTO_DISCONNECT_WALLET:
+                            await self.disconnect_wallet(session)
+
+
+                        if settings.AUTO_CONNECT_WALLET and self.wallet is not None and settings.AUTO_DISCONNECT_WALLET is False:
+                            if wallet is None or wallet == "":
                                 logger.info(
                                     f"{self.session_name} | Starting to connect with wallet <cyan>{self.wallet}</cyan>")
                                 a = await self.bind_wallet(session)
