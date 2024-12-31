@@ -35,9 +35,13 @@ def generate_wallets(count):
         mnemonics, pub_k, priv_k, wallet = Wallets.create(WalletVersionEnum.v4r2, workchain=0)
         wallet_address = wallet.address.to_string(True, True, False)
 
+
         wallets.update(
             {
-                wallet_address: " ".join(mnemonics)
+                wallet_address: {"recoveryPhrase": " ".join(mnemonics),
+                                 "public_k": pub_k.hex(),
+                                 "private_k": priv_k.hex()
+                }
             }
         )
 
@@ -90,13 +94,8 @@ def fetch_username(query):
             json_data = json.loads(fetch_data)
             return json_data['username']
         except:
-            try:
-                fetch_data = unquote(unquote(query)).split("user=")[1].split("&auth_date=")[0]
-                json_data = json.loads(fetch_data)
-                return json_data['username']
-            except:
-                logger.warning(f"Invaild query: {query}")
-                return ""
+            logger.warning(f"Invaild query: {query}")
+            sys.exit()
 
 
 
